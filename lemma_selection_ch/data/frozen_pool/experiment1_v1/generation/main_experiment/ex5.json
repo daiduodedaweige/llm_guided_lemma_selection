@@ -1,0 +1,66 @@
+{
+  "prompt": {
+    "prompt": "# Role and Objective\nYou are an expert in formal hardware verification tasked with aiding the verification of SystemVerilog modules using a formal tool like JasperGold. Your mission is to propose intermediate lemmas that simplify the verification of a complex property.\n\n\n# Instructions:\nYou are given: (1) a SystemVerilog module; (2) a difficult-to-verify property, defined inside the module in a named property construct, i.e., \"property prop; <property_body>; endproperty\".\nFollow these steps to complete the task:\n1. Understand the Module: Thoroughly review the provided SystemVerilog module to understand its purpose, architecture, and significant state transitions.\n2. Analyze the Property: Decompose the given property to isolate high-complexity aspects and identify potential sources of difficulty for formal engines.\n3. Identify Invariants and Behaviors: Identify potential invariants or persistent behaviors that could act as intermediate lemmas, aiding the verification process.\n4. Propose Lemmas: Construct concise, well-designed lemmas in SystemVerilog Assertion (SVA) format. Each lemma should use the syntax: `property <lemma_index>; <SVA lemma>; endproperty`.\nEach lemma should, when combined with the target property, make it 1-inductive. Do not produce trivial or uninformative lemmas that are simply restatements of the property.\n5. Explain the Reasoning: Accompany each lemma with a brief explanation detailing why it is sound and how it contributes to simplifying the original property's verification.\n6. Format your response in JSON: Your response must include a JSON block containing the suggested lemmas. The JSON block must be enclosed between <json> and </json> tags and adhere to the following format:\n\n<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; <SVA lemma>; endproperty\",\n      \"explanation\": \"<Concise rationale here>\"\n    },\n    {\n      \"lemma\": \"property lemma_2; <SVA lemma>; endproperty\",\n      \"explanation\": \"<Concise rationale here>\"\n    }\n    // ... additional lemmas in sequential order as needed\n  ]\n}\n</json>\n\nStop once you have suggested all valid, relevant intermediate lemmas and provided their explanations.\n\n\n# Examples: \n\n## Example 1 Input Module:\n\n\nmodule main(input logic clk, input logic signed [15:0] j, input rst);\n\n    logic signed [15:0] i;\n    logic signed [15:0] k;\n    \n\n  always_ff @(posedge clk) begin\n    if (rst) begin\n       i <= 0;\n       k <= 0;\n    end\n    else if (i < 200) begin\n        if (1 <= j && j < 200) begin\n            i <= i + j;\n            k <= k + 1;\n        end\n    end\n  end\n\n    property prop;\n        @(posedge clk) disable iff (rst) (k <= 200);\n    endproperty\n    \n\nendmodule\n\n## Example 1 Response:\n\n### Module Behavior and Property Meaning\nThis module counts how many times a signed input j satisfies 1 <= j < 200, and adds each such j to a sum i, as long as i < 200.\n\n- i: accumulates eligible j values.\n- k: counts how many such values were processed.\n\nAt each positive clock edge:\n- If i < 200 and 1 <= j < 200, then:\n    - i is incremented by j\n    - k is incremented by 1\n\nThis continues as long as i is less than 200.\nThe property asserts that k never exceeds 200. Since each increment of k is tied to adding a j >= 1 to i, and i stops accumulating once it reaches 200, k must remain ≤ 200.\n\n### Proposed Lemmas:\nWe propose a lemma which strengthens the property by adding the invariant k <= i.\nEvery time k is incremented, at least 1 is added to i, so i grows at least as fast as k.\n\nThe property alone (k <= 200) is not 1-inductive. The lemma is 1-inductive, and hence might be easier to prove directly.\nIt connects k and i, establishing that k <= i, and since i < 200 is the guard for continuing the process, this implies that k must also remain below 200.\n\n### JSON Block:\n\n<json>\n{\n   \"lemmas\": [\n       {\n           \"lemma_1\": \"property lemma_1; @(posedge clk) disable iff (rst) k <= 200 && k <= i; endproperty\"\n       }\n   ]\n}\n</json> \n\n# Your Turn:\nFollow the steps above for the following module and property: \nmodule main(input logic clk, input logic signed [15:0] j, input rst);\n\n    logic signed [15:0] i;\n    logic signed [15:0] k;\n    \n\n  always_ff @(posedge clk) begin\n    if (rst) begin\n       i <= 0;\n       k <= 0;\n    end\n    else if (i < 200) begin\n        if (1 <= j && j < 200) begin\n            i <= i + j;\n            k <= k + 1;\n        end\n    end\n  end\n\n    property prop;\n        @(posedge clk) disable iff (rst) (k <= 200);\n    endproperty\n    \n\nendmodule\n",
+    "model_name": "gpt-6.1-sol",
+    "module_name": "ex5",
+    "representation": "fewshot_prompt"
+  },
+  "responses": [
+    {
+      "source_index": 0,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) (k <= i); endproperty\",\n      \"explanation\": \"Reset sets both counters to zero. On every update, i increases by j >= 1 while k increases by one, preserving k <= i. If an update occurs, i < 200, so k < 200 before the increment and k <= 200 afterward. Together with the target property, this gives the needed inductive step. The formal setup must establish reset before checking either property; unconstrained initial state would not suffice.\"\n    }\n  ]\n}\n</json>",
+        "time": 13.019465057179332,
+        "input_tokens": 18718,
+        "output_tokens": 980
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 4,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) (k <= i); endproperty\",\n      \"explanation\": \"Reset sets both registers to zero. Whenever k increments, i increases by j >= 1, preserving k <= i. Before an increment, i < 200 therefore implies k <= 199, so the next k is at most 200. Together, the lemma and target property are 1-inductive after reset. Formal verification must establish that reset occurs; unconstrained initial register values need not satisfy either property.\"\n    }\n  ]\n}\n</json>",
+        "time": 18.223650870844722,
+        "input_tokens": 18718,
+        "output_tokens": 2346
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 2,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) (k <= i); endproperty\",\n      \"explanation\": \"Reset establishes k = i = 0. On an update, i increases by j >= 1 while k increases by 1, so k <= i is preserved; otherwise both hold their values. Together with the update guard i < 200, this gives k <= 199 before an increment and k <= 200 afterward. This assumes reset initializes the registers before the property is checked.\"\n    }\n  ]\n}\n</json>",
+        "time": 15.923531197942793,
+        "input_tokens": 18718,
+        "output_tokens": 936
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 1,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) (k <= i); endproperty\",\n      \"explanation\": \"Reset sets both counters to zero. On an enabled update, k increases by 1 while i increases by j >= 1, preserving k <= i. Since updates require i < 200, the lemma gives k <= 199 before any increment, so the next k is at most 200. Together, the lemma and target property are 1-inductive. A reset must occur before checking reachable-state correctness; with unconstrained initial registers, the target property can fail initially.\"\n    }\n  ]\n}\n</json>",
+        "time": 18.78878957591951,
+        "input_tokens": 18718,
+        "output_tokens": 1707
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 3,
+      "response": {
+        "text": "The key strengthening is to bound `i` and relate `k` to it. Assert both lemmas alongside `prop`; together they make the bound on `k` 1-inductive. This proof assumes reset has occurred, or that the initial state is otherwise constrained: `disable iff (rst)` suppresses assertion checking but does not initialize the registers. ([arxiv.org](https://arxiv.org/abs/1502.00096))\n\n<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) ((i >= 0) && (i <= 398)); endproperty\",\n      \"explanation\": \"An update starts with i <= 199 and adds j <= 199, so i remains between 0 and 398. This also rules out signed overflow in i.\"\n    },\n    {\n      \"lemma\": \"property lemma_2; @(posedge clk) disable iff (rst) (k <= i); endproperty\",\n      \"explanation\": \"Whenever k increments by one, i increases by at least one. Thus, before an update, k <= i < 200, making the next k <= 200; without an update, k holds.\"\n    }\n  ]\n}\n</json>",
+        "time": 26.07810108270496,
+        "input_tokens": 18718,
+        "output_tokens": 3954
+      },
+      "parse_status": "parsed",
+      "candidate_count": 2
+    }
+  ],
+  "cache_key": "4db8773b3865e04c494995c3b125c44245d94b04b95cf680b7c0de0120ddc70b"
+}

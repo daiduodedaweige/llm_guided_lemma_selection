@@ -1,0 +1,9 @@
+dataset
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+live-results/
+results/
+temp_lemmas/
+benchmarks/

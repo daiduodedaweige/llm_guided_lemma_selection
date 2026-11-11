@@ -1,0 +1,66 @@
+{
+  "prompt": {
+    "prompt": "# Role and Objective\nYou are an expert in formal hardware verification tasked with aiding the verification of SystemVerilog modules using a formal tool like JasperGold. Your mission is to propose intermediate lemmas that simplify the verification of a complex property.\n\n\n# Instructions:\nYou are given: (1) a SystemVerilog module; (2) a difficult-to-verify property, defined inside the module in a named property construct, i.e., \"property prop; <property_body>; endproperty\".\nFollow these steps to complete the task:\n1. Understand the Module: Thoroughly review the provided SystemVerilog module to understand its purpose, architecture, and significant state transitions.\n2. Analyze the Property: Decompose the given property to isolate high-complexity aspects and identify potential sources of difficulty for formal engines.\n3. Identify Invariants and Behaviors: Identify potential invariants or persistent behaviors that could act as intermediate lemmas, aiding the verification process.\n4. Propose Lemmas: Construct concise, well-designed lemmas in SystemVerilog Assertion (SVA) format. Each lemma should use the syntax: `property <lemma_index>; <SVA lemma>; endproperty`.\nEach lemma should, when combined with the target property, make it 1-inductive. Do not produce trivial or uninformative lemmas that are simply restatements of the property.\n5. Explain the Reasoning: Accompany each lemma with a brief explanation detailing why it is sound and how it contributes to simplifying the original property's verification.\n6. Format your response in JSON: Your response must include a JSON block containing the suggested lemmas. The JSON block must be enclosed between <json> and </json> tags and adhere to the following format:\n\n<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; <SVA lemma>; endproperty\",\n      \"explanation\": \"<Concise rationale here>\"\n    },\n    {\n      \"lemma\": \"property lemma_2; <SVA lemma>; endproperty\",\n      \"explanation\": \"<Concise rationale here>\"\n    }\n    // ... additional lemmas in sequential order as needed\n  ]\n}\n</json>\n\nStop once you have suggested all valid, relevant intermediate lemmas and provided their explanations.\n\n\n# Examples: \n\n## Example 1 Input Module:\n\n// Source: data/benchmarks/code2inv/15.c\n\nmodule ex15 #(parameter WIDTH = 32) (\n    input logic clk,\n    input rst,\n    input [WIDTH-1:0] n_init,\n    input logic unknown, \n    output logic assert_trigger\n);\n\n    typedef enum logic [1:0] {IDLE, LOOP, DONE} state_t;\n    state_t state;\n\n    logic [WIDTH-1:0] x, m;\n    logic [WIDTH-1:0] n;\n\n    \n    always_ff @(posedge clk or posedge rst) begin\n        if (rst) begin\n            x <= 0;\n            m <= 0;\n            n <= n_init;\n            state <= IDLE;\n        end else begin\n            case (state)\n                IDLE: begin\n                    x <= 0;\n                    m <= 0;\n                    state <= LOOP;\n                end\n                LOOP: begin\n                    if (x < n) begin\n                        if (unknown)\n                            m <= x;\n                        x <= x + 1;\n                    end else begin\n                        state <= DONE;\n                    end\n                end\n                DONE: begin\n                end\n            endcase\n        end\n    end\n\n    property prop;\n     @(posedge clk) disable iff (rst) (state != DONE || n <= 0 || m < n);\n    endproperty\n\n   \n\nendmodule\n\n\n## Example 1 Response:\n\n### Module Behavior and Property Meaning:\n\nDescription:\nThe SystemVerilog module `ex15` simulates a loop that iterates over values from 0 up to `n_init`, conditionally updating a variable `m` based on an external input signal `unknown`. Once the loop condition is no longer met, the internal `state` variable transitions to `DONE`, and the module ceases to update its internal variables.\n\nParameters and Inputs:\n- `WIDTH`: Bit-width of the data signals (default 32 bits).\n- `clk`: Clock signal.\n- `rst`: Reset signal.\n- `n_init`: Input value specifying how many times to iterate the loop.\n- `unknown`: External logic signal that determines whether `m` should be updated.\n\nState Machine:\n- The module defines a simple FSM with three states:\n  - `IDLE`: Initialization state. Sets `x` and `m` to 0 and transitions to `LOOP`.\n  - `LOOP`: Iterates while `x < n`.\n    - On each iteration:\n      - If `unknown` is true, sets `m` to the current value of `x`.\n      - Increments `x`.\n    - Once `x >= n`, transitions to `DONE`.\n  - `DONE`: Terminal state. No operations performed.\n\nBehavior on Reset:\n- When `rst` is high (active):\n  - `x`, `m` are set to 0.\n  - `n` is initialized to the input `n_init`.\n  - The state is set to `IDLE`.\n\nProperty:\n- The module includes a property `prop` that asserts:\n  \"At every rising clock edge, unless in reset, either the state is not `DONE`, or `n <= 0`, or `m < n`.\"\n- This ensures that when the loop finishes (in `DONE` state), the final value of `m` is strictly less than `n`, or `n` was non-positive to begin with.\n- Since the module loops from `x = 0` to `x = n`, assigns `m = x` when the `unknown` signal is true, and only then increments `x`, the maximum value `m` can take is `n - 1`.\n\n\n\n### Proposed Lemmas:\n\nWe propose a single lemma that is stronger than the original property and is 1-inductive. This lemma asserts that the desired condition holds at every clock cycle, not just in the final configuration where `state == DONE`.\nThe lemma is 1-inductive because, under the assumption that `rst` is low:\n- If `n` is nonpositive at any clock cycle, it will remain nonpositive in the next cycle, since `n` is only updated during `reset` at the beginning of the execution trace.\n- If `n` is positive, then `m < n` holds. In the current cycle, `m` can only be updated to the current value of `x`, and since `x < n`, the inequality `m < n` will continue to hold in the next state.\n\nThis lemma clearly implies the original property.\n\n\n### JSON Block:\n\n<json>\n{\n   \"lemmas\": [\n       {\n           \"lemma_1\": \"property lemma_1; @(posedge clk) disable iff (rst) (n <= 0 || m < n); endproperty\"\n       }\n   ]\n}\n</json> \n\n# Your Turn:\nFollow the steps above for the following module and property: // Source: data/benchmarks/code2inv/15.c\n\nmodule ex15 #(parameter WIDTH = 32) (\n    input logic clk,\n    input rst,\n    input [WIDTH-1:0] n_init,\n    input logic unknown, \n    output logic assert_trigger\n);\n\n    typedef enum logic [1:0] {IDLE, LOOP, DONE} state_t;\n    state_t state;\n\n    logic [WIDTH-1:0] x, m;\n    logic [WIDTH-1:0] n;\n\n    \n    always_ff @(posedge clk or posedge rst) begin\n        if (rst) begin\n            x <= 0;\n            m <= 0;\n            n <= n_init;\n            state <= IDLE;\n        end else begin\n            case (state)\n                IDLE: begin\n                    x <= 0;\n                    m <= 0;\n                    state <= LOOP;\n                end\n                LOOP: begin\n                    if (x < n) begin\n                        if (unknown)\n                            m <= x;\n                        x <= x + 1;\n                    end else begin\n                        state <= DONE;\n                    end\n                end\n                DONE: begin\n                end\n            endcase\n        end\n    end\n\n    property prop;\n     @(posedge clk) disable iff (rst) (state != DONE || n <= 0 || m < n);\n    endproperty\n\n\n   \n\nendmodule\n\n",
+    "model_name": "gpt-6.1-sol",
+    "module_name": "ex15_ebmc",
+    "representation": "fewshot_prompt"
+  },
+  "responses": [
+    {
+      "source_index": 0,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) ((n == '0) || (m < n)); endproperty\",\n      \"explanation\": \"This invariant bounds m throughout execution, independently of the FSM state. Reset establishes it because m is zero and n is unsigned. For the inductive step, n remains unchanged outside reset. IDLE sets m to zero, which satisfies the invariant for every n. LOOP updates m only when x < n and unknown is true, assigning the current x and therefore preserving m < n. All other transitions preserve m. Thus the lemma is 1-inductive and directly implies the target property when state == DONE. No additional invariant on x is needed because the assignment to m is protected by x < n.\"\n    }\n  ]\n}\n</json>",
+        "time": 25.502498246729374,
+        "input_tokens": 5991,
+        "output_tokens": 686
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 4,
+      "response": {
+        "text": "Assuming reset initializes the design, the following single lemma is sufficient. It combines a bound on the counter with a relation between the counter and the saved value; this conjunction is 1-inductive and implies `prop`.\n\n<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) ((x <= n) && ((m == '0) || (m < x))); endproperty\",\n      \"explanation\": \"Reset establishes x = m = 0, so both conjuncts hold for every unsigned n. IDLE reestablishes them. In LOOP, x increments only when x < n, which prevents overflow and preserves x <= n. If unknown is true, m receives the old x and is therefore strictly less than the incremented x. Otherwise, m is unchanged, preserving either m = 0 or m < x. Exiting LOOP and remaining in DONE preserve both values. Thus the lemma is preserved by one transition. When n > 0, m = 0 implies m < n; otherwise, m < x together with x <= n implies m < n. When n = 0, the target's n <= 0 disjunct holds. Consequently, the lemma implies prop in every state, and their conjunction is 1-inductive.\"\n    }\n  ]\n}\n</json>",
+        "time": 60.727341463789344,
+        "input_tokens": 5991,
+        "output_tokens": 1840
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 2,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) (n == '0 || m < n); endproperty\",\n      \"explanation\": \"This invariant extends the required bound to every FSM state. Reset initializes m to zero, satisfying the invariant for any unsigned n. Outside reset, n remains constant. IDLE sets m to zero; LOOP either preserves m or assigns m the current x only when x < n; DONE preserves m. Thus the invariant holds initially and is preserved by every single transition. It directly implies prop, making the conjunction of this lemma and the target property 1-inductive.\"\n    }\n  ]\n}\n</json>",
+        "time": 25.079434748739004,
+        "input_tokens": 5991,
+        "output_tokens": 581
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 1,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) ((n == 0) || (m < n)); endproperty\",\n      \"explanation\": \"This invariant strengthens the target by holding in every state. Since n is unsigned, n <= 0 is equivalent to n == 0. Reset and IDLE set m to zero, satisfying the invariant for every n. Outside reset, n remains constant; LOOP updates m only to an x satisfying x < n, and all other transitions preserve m. Thus the invariant is 1-inductive and directly implies the target property, removing the need to reason about how many cycles precede DONE.\"\n    }\n  ]\n}\n</json>",
+        "time": 20.812508854083717,
+        "input_tokens": 5991,
+        "output_tokens": 604
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 3,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clk) disable iff (rst) (x <= n && ((x == '0 && m == '0) || m < x)); endproperty\",\n      \"explanation\": \"This invariant bounds loop progress and relates m to x without referring to DONE. Reset and IDLE establish x=m=0, satisfying the invariant because n is unsigned. A LOOP iteration requires x<n, so incrementing x cannot overflow and preserves x<=n. Meanwhile, m either remains unchanged or receives the old x, making it strictly less than the incremented x. All other transitions preserve these values. When LOOP transitions to DONE, its exit condition x>=n and the invariant x<=n imply x=n. If n>0, the invariant therefore gives m<x=n, establishing the target property. The invariant is itself 1-inductive, and its conjunction with the target property is 1-inductive.\"\n    }\n  ]\n}\n</json>",
+        "time": 52.8940748795867,
+        "input_tokens": 5991,
+        "output_tokens": 1770
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    }
+  ],
+  "cache_key": "4bb90d8e83f06852da155b5bb543d5aa267b40cca949d87611d78efd82239816"
+}

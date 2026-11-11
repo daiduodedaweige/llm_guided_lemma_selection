@@ -1,0 +1,70 @@
+\documentclass[UTF8,letterpaper,10pt,fontset=none]{ctexart}
+
+\usepackage[letterpaper,left=0.75in,right=0.75in,top=0.72in,bottom=0.72in,columnsep=0.25in]{geometry}
+\usepackage{fontspec}
+\setmainfont{texgyretermes-regular.otf}[
+  BoldFont=texgyretermes-bold.otf,
+  ItalicFont=texgyretermes-italic.otf,
+  BoldItalicFont=texgyretermes-bolditalic.otf]
+\setCJKmainfont[AutoFakeSlant=0.2]{Noto Serif CJK SC}
+\setCJKsansfont{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans Mono CJK SC}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage[unicode,hidelinks]{hyperref}
+
+\ctexset{
+  section={format=\normalfont\bfseries\fontsize{11}{13}\selectfont,
+    beforeskip=12pt,afterskip=4pt},
+  subsection={format=\normalfont\bfseries\fontsize{10}{12}\selectfont,
+    beforeskip=9pt,afterskip=3pt},
+  subsubsection={format=\normalfont\bfseries\fontsize{10}{12}\selectfont,
+    beforeskip=7pt,afterskip=2pt}
+}
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+\setcounter{secnumdepth}{2}
+\pagestyle{empty}
+\raggedbottom
+
+\begin{document}
+\twocolumn[{
+  \vspace*{28pt}
+  \begin{center}
+    {\fontsize{14}{16}\selectfont\bfseries
+      面向 RTL 形式化验证的大语言模型与\\
+      证明反馈协同的高效归纳引理选择方法\par}
+    \vspace*{105pt}
+  \end{center}
+  \vspace*{6pt}
+}]
+
+\begin{center}\bfseries 摘要\end{center}
+\vspace*{125pt}
+\noindent\textbf{关键词：}\par
+\mbox{}\par
+
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_preliminaries}
+\input{sections/04_motivating_example}
+\input{sections/05_method}
+\input{sections/06_implementation_and_setup}
+\input{sections/07_results}
+\input{sections/08_discussion}
+\input{sections/09_conclusion}
+
+\section*{致谢}
+
+\bibliographystyle{unsrt}
+\begingroup
+\raggedright
+\bibliography{references}
+\endgroup
+
+\appendix
+\input{appendices/A_algorithm}
+\input{appendices/B_reproducibility}
+\input{appendices/C_supplementary_results}
+
+\end{document}

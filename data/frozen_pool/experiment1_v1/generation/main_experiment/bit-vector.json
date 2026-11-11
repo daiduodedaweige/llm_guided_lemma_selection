@@ -1,0 +1,66 @@
+{
+  "prompt": {
+    "prompt": "# Role and Objective\nYou are an expert in formal hardware verification tasked with aiding the verification of SystemVerilog modules using a formal tool like JasperGold. Your mission is to propose intermediate lemmas that simplify the verification of a complex property.\n\n\n# Instructions:\nYou are given: (1) a SystemVerilog module; (2) a difficult-to-verify property, defined inside the module in a named property construct, i.e., \"property prop; <property_body>; endproperty\".\nFollow these steps to complete the task:\n1. Understand the Module: Thoroughly review the provided SystemVerilog module to understand its purpose, architecture, and significant state transitions.\n2. Analyze the Property: Decompose the given property to isolate high-complexity aspects and identify potential sources of difficulty for formal engines.\n3. Identify Invariants and Behaviors: Identify potential invariants or persistent behaviors that could act as intermediate lemmas, aiding the verification process.\n4. Propose Lemmas: Construct concise, well-designed lemmas in SystemVerilog Assertion (SVA) format. Each lemma should use the syntax: `property <lemma_index>; <SVA lemma>; endproperty`.\nEach lemma should, when combined with the target property, make it 1-inductive. Do not produce trivial or uninformative lemmas that are simply restatements of the property.\n5. Explain the Reasoning: Accompany each lemma with a brief explanation detailing why it is sound and how it contributes to simplifying the original property's verification.\n6. Format your response in JSON: Your response must include a JSON block containing the suggested lemmas. The JSON block must be enclosed between <json> and </json> tags and adhere to the following format:\n\n<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; <SVA lemma>; endproperty\",\n      \"explanation\": \"<Concise rationale here>\"\n    },\n    {\n      \"lemma\": \"property lemma_2; <SVA lemma>; endproperty\",\n      \"explanation\": \"<Concise rationale here>\"\n    }\n    // ... additional lemmas in sequential order as needed\n  ]\n}\n</json>\n\nStop once you have suggested all valid, relevant intermediate lemmas and provided their explanations.\n\n\n# Examples: \n\n## Example 1 Input Module:\n\n\nmodule main (clk, rst);\ninput clk;\ninput rst;\nreg [2500:0] a,b;\t\n\t\n\nalways @ (posedge clk) begin\n\tif (rst) begin\n\t\ta <= 1;\n\t\tb <= 0;\n\tend\n\telse begin\n\t    if (a<100) begin \n\t       a<=b+a;\n\t    end\n\n\t   b <=a;\n        end\nend\n\n\nproperty prop;\n @(posedge clk) disable iff (rst) a < 200;\nendproperty\n\n\nendmodule\n\n\n## Example 1 Response:\n\n## Module Behavior and Property Meaning:\n\nThis module implements a simple recurrence relation between two large registers, `a` and `b`, over clock cycles:\n- `a` is initialized to 1.\n- `b` is initialized to 0.\n\nOn every positive clock edge:\n- If `a < 100`, update `a := a + b`.\n- Regardless of the condition, update `b := a`.\n\nThis defines a system of two variables where `a` accumulates its past valurs, and as long as the value of `a` is updated, `b` lags one step behind `a`.\nThe given property is a safety property that asserts that `a` always remains below 200 during all reachable states of the system.\nTo successfully verify the property `assert property (a<200);` we can propose the following lemma to constrain the state space and simplify the verification:\n\n### Proposed Lemmas: \nWe propose an inductive invariant that strengthens the property: `a < 200` and `b <= a`.\nThis  lemma is 1-inductive:\n- If `a < 100`, then `a := a + b`, which preserves `a < 200` if `b <= a`. Simultaneously, `b := a`, which ensures `b <= a` continues to hold in the next cycle.\n- If `a >= 100`, then the values of `a` and `b` do not change, so both conjuncts of the lemma hold in the next cycle.\nAs such, it can help the formal tool prove the property more efficiently.\n\n\n### JSON Block:\n\n<json>\n{\n   \"lemmas\": [\n       {\n           \"lemma_1\": \"property lemma_1; @(posedge clk) disable iff (rst) (a < 200 && b <= a); endproperty\"\n       }\n   ]\n}\n</json>\n \n\n# Your Turn:\nFollow the steps above for the following module and property: module main (clock);\ninput clock;\nreg [2:0]a,b;\n\ninitial a = 3'b010;\ninitial b = 3'b110;\n\nalways @ (posedge clock) begin\n\ta[2] <= b[0];\n\ta[1:0] <= b[2:1];\t\n\tb[2:1] <= a[1:0];\n\tb[0] <= a[2];\nend\n\nproperty prop;\n(a >= 2);\nendproperty\n\n\nendmodule\n",
+    "model_name": "gpt-6.1-sol",
+    "module_name": "bit-vector",
+    "representation": "fewshot_prompt"
+  },
+  "responses": [
+    {
+      "source_index": 0,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clock) (a[1] && b[2]); endproperty\",\n      \"explanation\": \"Both bits initialize to 1 and swap values on every clock edge, so this invariant is 1-inductive. Because a[1] remains 1, a is always at least 2. Check the target property on the same clock.\"\n    }\n  ]\n}\n</json>",
+        "time": 19.019306607544422,
+        "input_tokens": 18679,
+        "output_tokens": 2268
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 4,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clock) (a[1] && b[2]); endproperty\",\n      \"explanation\": \"Both bits initialize to 1. On each clock edge, a[1] takes the previous value of b[2], and b[2] takes the previous value of a[1], so their conjunction is 1-inductive. Since a[1] remains 1, a is always at least 2. This assumes the target property is checked at the same clock edge.\"\n    }\n  ]\n}\n</json>",
+        "time": 19.281572971493006,
+        "input_tokens": 18679,
+        "output_tokens": 2388
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 2,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clock) (a[1] && b[2]); endproperty\",\n      \"explanation\": \"Both bits initialize to 1 and swap values on every rising edge, so this invariant is 1-inductive. Since a[1] remains 1, a is always at least 2.\"\n    }\n  ]\n}\n</json>",
+        "time": 13.104365759529173,
+        "input_tokens": 18679,
+        "output_tokens": 1133
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 1,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clock) (a[1] && b[2]); endproperty\",\n      \"explanation\": \"Both bits are 1 initially. Each clock edge swaps their values (a[1] takes b[2], and b[2] takes a[1]), so the conjunction is 1-inductive. Because a[1] is always 1, a is always at least 2.\"\n    }\n  ]\n}\n</json>",
+        "time": 12.448025424033403,
+        "input_tokens": 18679,
+        "output_tokens": 955
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    },
+    {
+      "source_index": 3,
+      "response": {
+        "text": "<json>\n{\n  \"lemmas\": [\n    {\n      \"lemma\": \"property lemma_1; @(posedge clock) (a[1] && b[2]); endproperty\",\n      \"explanation\": \"Both bits are initially 1. Each clock edge swaps their values, so the conjunction is 1-inductive. Since a[1] remains 1, a is always at least 2, proving the target property.\"\n    }\n  ]\n}\n</json>",
+        "time": 19.16441806871444,
+        "input_tokens": 18679,
+        "output_tokens": 1480
+      },
+      "parse_status": "parsed",
+      "candidate_count": 1
+    }
+  ],
+  "cache_key": "dcb1f4fbfc40f3cbce36793b16c1290d5434128cec8c67c19eed2b3e6ce2b1f8"
+}
